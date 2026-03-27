@@ -43,6 +43,9 @@ export default function ChatRoom({ chatId, onBack }: Props) {
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState<string | null>(null)
   const [showStickers, setShowStickers] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<any>(null)
+  const [memberProfile, setMemberProfile] = useState<any>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const typingTimeout = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -389,6 +392,129 @@ export default function ChatRoom({ chatId, onBack }: Props) {
     return null
   }
 
+  const openMemberProfile = async (memberId: string) => {
+    try {
+      const profile = await api.getUserProfile(memberId)
+      setMemberProfile(profile)
+    } catch { }
+  }
+
+  const formatLastSeen = (ls?: string) => {
+    if (!ls) return 'не в сети'
+    const d = new Date(ls + 'Z')
+    const diff = Date.now() - d.getTime()
+    if (diff < 5 * 60 * 1000) return 'в сети'
+    if (diff < 60 * 60 * 1000) return `${Math.round(diff / 60000)} мин назад`
+    if (diff < 24 * 60 * 60 * 1000) return `${Math.round(diff / 3600000)} ч назад`
+    return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  }
+
+  // Member profile view
+  if (memberProfile) {
+    const p = memberProfile
+    const accuracy = (p.totalQuizAnswered || 0) > 0
+      ? Math.round(((p.totalQuizCorrect || 0) / (p.totalQuizAnswered || 1)) * 100) : 0
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', minHeight: 0, height: '100%' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+          borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexShrink: 0
+        }}>
+          <button onClick={() => setMemberProfile(null)} style={{
+            background: 'none', border: 'none', color: 'var(--accent)',
+            fontSize: 24, cursor: 'pointer', padding: '4px 8px', marginLeft: -8
+          }}>←</button>
+          <h2 style={{ fontSize: 16, fontWeight: 800 }}>Профиль</h2>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }} className="animate-fadeIn">
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%', margin: '0 auto 12px', overflow: 'hidden',
+              background: p.avatarUrl ? 'transparent' : p.avatarColor,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 32, fontWeight: 800, color: 'white', border: '3px solid var(--border)'
+            }}>
+              {p.avatarUrl ? (
+                <img src={p.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : p.displayName[0]?.toUpperCase()}
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 800 }}>{p.displayName}</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>@{p.nickname}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>{formatLastSeen(p.lastSeen)}</p>
+          </div>
+          <div style={{
+            background: 'var(--bg-secondary)', borderRadius: 20, padding: 20,
+            border: '1px solid var(--border)'
+          }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16 }}>🧠 Статистика квизов</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--orange)' }}>🔥 {p.quizStreak || 0}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Серия</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--green)' }}>{p.totalQuizCorrect || 0}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Правильно</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)' }}>{accuracy}%</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Точность</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Members list view
+  if (showMembers && chat) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', minHeight: 0, height: '100%' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+          borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', flexShrink: 0
+        }}>
+          <button onClick={() => setShowMembers(false)} style={{
+            background: 'none', border: 'none', color: 'var(--accent)',
+            fontSize: 24, cursor: 'pointer', padding: '4px 8px', marginLeft: -8
+          }}>←</button>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 800 }}>Участники</h2>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{chat.members.length} чел.</p>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {chat.members.map((m: any) => (
+            <div key={m.id} onClick={() => openMemberProfile(m.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '12px 20px', borderBottom: '1px solid var(--border)',
+              cursor: 'pointer'
+            }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+                background: m.avatarUrl ? 'transparent' : m.avatarColor,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18, fontWeight: 800, color: 'white', overflow: 'hidden'
+              }}>
+                {m.avatarUrl ? (
+                  <img src={m.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : m.displayName[0]?.toUpperCase()}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>
+                  {m.displayName} {m.id === user?.id ? '(вы)' : ''}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>@{m.nickname}</div>
+              </div>
+              <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>›</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', minHeight: 0, height: '100%' }} className="animate-slideIn">
       {/* Header */}
@@ -401,7 +527,7 @@ export default function ChatRoom({ chatId, onBack }: Props) {
           background: 'none', border: 'none', color: 'var(--accent)',
           fontSize: 24, cursor: 'pointer', padding: '4px 8px', marginLeft: -8
         }}>←</button>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setShowMembers(true)}>
           <h2 style={{ fontSize: 16, fontWeight: 800 }}>{chatTitle}</h2>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
             {typing ? `${typing} печатает...` : chatSubtitle}

@@ -111,6 +111,7 @@ const stmts = {
   updateLastSeen: db.prepare("UPDATE users SET lastSeen = datetime('now') WHERE id = ?"),
   updateQuizStats: db.prepare('UPDATE users SET quizStreak = ?, totalQuizCorrect = ?, totalQuizAnswered = ? WHERE id = ?'),
   searchUsers: db.prepare("SELECT id, nickname, displayName, avatarColor, avatarUrl FROM users WHERE nickname LIKE ? AND id != ? LIMIT 20"),
+  getAllUsers: db.prepare("SELECT id, nickname, displayName, avatarColor, avatarUrl, quizStreak, totalQuizCorrect, totalQuizAnswered, lastSeen FROM users ORDER BY displayName"),
   addContact: db.prepare('INSERT OR IGNORE INTO contacts (userId, contactId) VALUES (?, ?)'),
   getContacts: db.prepare(`
     SELECT u.id, u.nickname, u.displayName, u.avatarColor, u.avatarUrl, u.lastSeen
@@ -302,6 +303,19 @@ app.post('/api/me/avatar', authMiddleware, (req, res, next) => {
     const updatedUser = stmts.getUserById.get(req.userId);
     res.json(updatedUser);
   });
+});
+
+// Get all users
+app.get('/api/users', authMiddleware, (req, res) => {
+  const users = stmts.getAllUsers.all().filter(u => u.id !== req.userId);
+  res.json(users);
+});
+
+// Get user profile by ID
+app.get('/api/users/:userId', authMiddleware, (req, res) => {
+  const user = stmts.getUserById.get(req.params.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json(user);
 });
 
 // Search users by nickname

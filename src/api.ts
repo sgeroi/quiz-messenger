@@ -29,6 +29,8 @@ export const api = {
 
   getMe: () => request('/me'),
 
+  getAllUsers: () => request('/users'),
+  getUserProfile: (userId: string) => request(`/users/${userId}`),
   searchUsers: (q: string) => request(`/users/search?q=${encodeURIComponent(q)}`),
 
   getContacts: () => request('/contacts'),
