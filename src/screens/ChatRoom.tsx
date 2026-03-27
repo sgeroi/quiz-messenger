@@ -10,10 +10,12 @@ interface Props {
   onBack: () => void
 }
 
+const emptyMessages: Message[] = []
+
 export default function ChatRoom({ chatId, onBack }: Props) {
   const user = useAuthStore(s => s.user)
   const chats = useChatStore(s => s.chats)
-  const messages = useChatStore(s => s.messages[chatId] || [])
+  const messages = useChatStore(s => s.messages[chatId]) ?? emptyMessages
   const setMessages = useChatStore(s => s.setMessages)
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState<string | null>(null)
@@ -52,9 +54,10 @@ export default function ChatRoom({ chatId, onBack }: Props) {
     return () => { socket?.off('typing:update', handleTyping) }
   }, [chatId])
 
+  const messagesLength = messages.length
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messagesLength])
 
   const loadMessages = async () => {
     try {
