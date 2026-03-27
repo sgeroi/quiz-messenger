@@ -75,6 +75,8 @@ export default function ChatRoom({ chatId, onBack }: Props) {
     const onStarted = (data: any) => {
       if (data.chatId !== chatId) return
       setQuiz(q => ({ ...q, active: true, countdown: 5, participants: 1, finished: null, leaderboard: [] }))
+      // Auto-join the quiz for all users in the chat
+      socket?.emit('quiz:join', { chatId })
     }
 
     const onQuestion = (data: any) => {
@@ -180,7 +182,6 @@ export default function ChatRoom({ chatId, onBack }: Props) {
   const startQuiz = () => {
     const socket = getSocket()
     socket?.emit('quiz:start', { chatId, questionCount: 5 })
-    socket?.emit('quiz:join', { chatId })
   }
 
   const submitAnswer = (index: number) => {

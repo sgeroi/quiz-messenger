@@ -511,6 +511,12 @@ io.on('connection', (socket) => {
   socket.on('quiz:answer', ({ chatId, answerIndex }) => {
     const battle = activeBattles.get(chatId);
     if (!battle) return;
+    // Auto-join if not yet a participant
+    if (!battle.participants.has(userId)) {
+      const u = stmts.getUserById.get(userId);
+      battle.join(userId, u.displayName);
+      io.to(`chat:${chatId}`).emit('quiz:playerJoined', { chatId, userId, displayName: u.displayName, participants: battle.participants.size });
+    }
     const result = battle.submitAnswer(userId, answerIndex);
     if (result) {
       socket.emit('quiz:answerResult', { chatId, ...result });
