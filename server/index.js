@@ -24,6 +24,7 @@ app.use(express.json());
 const avatarDir = path.join(__dirname, 'avatars');
 if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir);
 app.use('/avatars', express.static(avatarDir));
+app.use('/stickers', express.static(path.join(__dirname, 'stickers')));
 
 const upload = multer({
   storage: multer.diskStorage({

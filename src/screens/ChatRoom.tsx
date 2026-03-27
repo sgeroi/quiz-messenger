@@ -3,6 +3,7 @@ import { api } from '../api'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore, Message } from '../stores/chatStore'
 import { getSocket } from '../socket'
+import { stickers } from '../stickers'
 
 interface Props {
   chatId: string
@@ -41,6 +42,7 @@ export default function ChatRoom({ chatId, onBack }: Props) {
   const setMessages = useChatStore(s => s.setMessages)
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState<string | null>(null)
+  const [showStickers, setShowStickers] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const typingTimeout = useRef<any>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -171,6 +173,12 @@ export default function ChatRoom({ chatId, onBack }: Props) {
     setInput('')
   }
 
+  const sendSticker = (stickerUrl: string) => {
+    const socket = getSocket()
+    socket?.emit('message:send', { chatId, content: stickerUrl, type: 'sticker' })
+    setShowStickers(false)
+  }
+
   const handleInputChange = (val: string) => {
     setInput(val)
     const socket = getSocket()
@@ -222,9 +230,15 @@ export default function ChatRoom({ chatId, onBack }: Props) {
             {msg.senderName}
           </span>
         )}
-        <div className={`bubble ${isMine ? 'bubble-mine' : 'bubble-other'}`}>
-          {msg.content}
-        </div>
+        {msg.type === 'sticker' ? (
+          <img src={msg.content} alt="sticker" style={{
+            width: 128, height: 128, objectFit: 'contain'
+          }} />
+        ) : (
+          <div className={`bubble ${isMine ? 'bubble-mine' : 'bubble-other'}`}>
+            {msg.content}
+          </div>
+        )}
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, marginLeft: 4, marginRight: 4 }}>
           {formatTime(msg.createdAt)}
         </span>
@@ -421,6 +435,30 @@ export default function ChatRoom({ chatId, onBack }: Props) {
         {renderQuizInline()}
       </div>
 
+      {/* Sticker panel */}
+      {showStickers && (
+        <div style={{
+          padding: '8px 12px', background: 'var(--bg-secondary)',
+          borderTop: '1px solid var(--border)', flexShrink: 0,
+          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6,
+          maxHeight: 200, overflowY: 'auto'
+        }}>
+          {stickers.map(s => (
+            <button key={s.id} onClick={() => sendSticker(s.url)} style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 12, padding: 6, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'transform 0.1s'
+            }}
+            onPointerDown={e => (e.currentTarget.style.transform = 'scale(0.9)')}
+            onPointerUp={e => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              <img src={s.url} alt={s.emoji} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Input */}
       <div style={{
         display: 'flex', gap: 8, padding: '12px 16px',
@@ -428,9 +466,18 @@ export default function ChatRoom({ chatId, onBack }: Props) {
         borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)',
         flexShrink: 0
       }}>
+        <button onClick={() => setShowStickers(!showStickers)} style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: showStickers ? 'var(--accent-dark)' : 'var(--bg-card)',
+          border: `1px solid ${showStickers ? 'var(--accent)' : 'var(--border)'}`,
+          fontSize: 22, cursor: 'pointer', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background 0.2s'
+        }}>😀</button>
         <input className="input" placeholder="Сообщение..." value={input}
           onChange={e => handleInputChange(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && sendMessage()}
+          onFocus={() => setShowStickers(false)}
           style={{ flex: 1, borderRadius: 20, padding: '12px 18px' }} />
         <button onClick={sendMessage} disabled={!input.trim()} style={{
           width: 48, height: 48, borderRadius: '50%',
