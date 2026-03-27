@@ -65,11 +65,10 @@ export default function AuthScreen() {
           src="/logo.png"
           alt="Квиз, плиз!"
           style={{
-            width: 64, height: 64,
-            borderRadius: 16,
+            width: 72, height: 72,
             margin: '0 auto 16px',
             display: 'block',
-            objectFit: 'cover'
+            objectFit: 'contain'
           }}
         />
         <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 2, letterSpacing: '-0.5px' }}>
