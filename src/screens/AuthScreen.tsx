@@ -61,12 +61,34 @@ export default function AuthScreen() {
     }}>
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 40 }} className="animate-fadeIn">
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🧠</div>
-        <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 4 }}>
+        <div style={{
+          width: 72, height: 72,
+          margin: '0 auto 16px',
+          borderRadius: 20,
+          background: 'linear-gradient(135deg, #7C3AED, #a855f7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 32px rgba(168, 85, 247, 0.3)',
+          position: 'relative'
+        }}>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <text x="4" y="30" fontFamily="Nunito, sans-serif" fontWeight="900" fontSize="28" fill="white">Q</text>
+            <text x="22" y="30" fontFamily="Nunito, sans-serif" fontWeight="900" fontSize="20" fill="rgba(255,255,255,0.7)">P</text>
+            <circle cx="34" cy="10" r="4" fill="#22c55e" />
+          </svg>
+        </div>
+        <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 2, letterSpacing: '-0.5px' }}>
           Квиз, плиз!
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 15 }}>
-          Мессенджер для эрудитов
+        <p style={{
+          color: 'var(--accent-light)',
+          fontSize: 13,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '3px'
+        }}>
+          мессенджер
         </p>
       </div>
 

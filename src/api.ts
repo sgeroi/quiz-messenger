@@ -45,4 +45,18 @@ export const api = {
     request('/chats/group', { method: 'POST', body: JSON.stringify({ name, memberIds }) }),
 
   getMessages: (chatId: string) => request(`/chats/${chatId}/messages`),
+
+  uploadAvatar: async (file: File) => {
+    const token = localStorage.getItem('qm_token')
+    const form = new FormData()
+    form.append('avatar', file)
+    const res = await fetch(`${BASE}/me/avatar`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: form
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Upload failed')
+    return data
+  },
 }

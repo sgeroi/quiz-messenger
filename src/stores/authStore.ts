@@ -5,6 +5,7 @@ interface User {
   nickname: string
   displayName: string
   avatarColor: string
+  avatarUrl: string | null
   quizStreak: number
   totalQuizCorrect: number
   totalQuizAnswered: number

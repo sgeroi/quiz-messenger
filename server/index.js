@@ -10,12 +10,32 @@ const cors = require('cors');
 const { getRandomQuestion } = require('./quiz-questions');
 const { QuizBattle } = require('./quiz-battle');
 
+const fs = require('fs');
+const multer = require('multer');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
+
+// Avatar upload setup
+const avatarDir = path.join(__dirname, 'avatars');
+if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir);
+app.use('/avatars', express.static(avatarDir));
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: avatarDir,
+    filename: (req, file, cb) => cb(null, `${req.userId}-${Date.now()}${path.extname(file.originalname)}`)
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only images allowed'));
+  }
+});
 
 const JWT_SECRET = 'quiz-please-messenger-secret-2026';
 const PORT = process.env.PORT || 3500;
@@ -79,24 +99,27 @@ db.exec(`
   );
 `);
 
+// Migration: add avatarUrl column
+try { db.exec('ALTER TABLE users ADD COLUMN avatarUrl TEXT DEFAULT NULL'); } catch (e) { /* already exists */ }
+
 // Prepared statements
 const stmts = {
   createUser: db.prepare('INSERT INTO users (id, nickname, displayName, passwordHash, avatarColor) VALUES (?, ?, ?, ?, ?)'),
   getUserByNickname: db.prepare('SELECT * FROM users WHERE nickname = ?'),
-  getUserById: db.prepare('SELECT id, nickname, displayName, avatarColor, quizStreak, totalQuizCorrect, totalQuizAnswered, lastSeen FROM users WHERE id = ?'),
+  getUserById: db.prepare('SELECT id, nickname, displayName, avatarColor, avatarUrl, quizStreak, totalQuizCorrect, totalQuizAnswered, lastSeen FROM users WHERE id = ?'),
   updateLastSeen: db.prepare("UPDATE users SET lastSeen = datetime('now') WHERE id = ?"),
   updateQuizStats: db.prepare('UPDATE users SET quizStreak = ?, totalQuizCorrect = ?, totalQuizAnswered = ? WHERE id = ?'),
-  searchUsers: db.prepare("SELECT id, nickname, displayName, avatarColor FROM users WHERE nickname LIKE ? AND id != ? LIMIT 20"),
+  searchUsers: db.prepare("SELECT id, nickname, displayName, avatarColor, avatarUrl FROM users WHERE nickname LIKE ? AND id != ? LIMIT 20"),
   addContact: db.prepare('INSERT OR IGNORE INTO contacts (userId, contactId) VALUES (?, ?)'),
   getContacts: db.prepare(`
-    SELECT u.id, u.nickname, u.displayName, u.avatarColor, u.lastSeen
+    SELECT u.id, u.nickname, u.displayName, u.avatarColor, u.avatarUrl, u.lastSeen
     FROM contacts c JOIN users u ON c.contactId = u.id
     WHERE c.userId = ? ORDER BY u.displayName
   `),
   createChat: db.prepare('INSERT INTO chats (id, type, name, createdBy) VALUES (?, ?, ?, ?)'),
   addChatMember: db.prepare('INSERT OR IGNORE INTO chat_members (chatId, odId) VALUES (?, ?)'),
   getChatMembers: db.prepare(`
-    SELECT u.id, u.nickname, u.displayName, u.avatarColor
+    SELECT u.id, u.nickname, u.displayName, u.avatarColor, u.avatarUrl
     FROM chat_members cm JOIN users u ON cm.odId = u.id
     WHERE cm.chatId = ?
   `),
@@ -223,17 +246,31 @@ app.post('/api/login/verify', (req, res) => {
     }
     stmts.updateQuizStats.run(newStreak, newCorrect, newAnswered, decoded.userId);
 
-    // Even if wrong, user can still log in (it's fun, not a gate)
-    // But we track the streak for gamification
-    const token = jwt.sign({ userId: decoded.userId }, JWT_SECRET, { expiresIn: '30d' });
-    stmts.updateLastSeen.run(decoded.userId);
-
-    res.json({
-      token,
-      isCorrect,
-      streak: isCorrect ? newStreak : 0,
-      user: { ...user, quizStreak: isCorrect ? newStreak : 0, totalQuizCorrect: newCorrect, totalQuizAnswered: newAnswered }
-    });
+    if (isCorrect) {
+      // Correct — issue auth token
+      const token = jwt.sign({ userId: decoded.userId }, JWT_SECRET, { expiresIn: '30d' });
+      stmts.updateLastSeen.run(decoded.userId);
+      res.json({
+        token,
+        isCorrect: true,
+        streak: newStreak,
+        user: { ...user, quizStreak: newStreak, totalQuizCorrect: newCorrect, totalQuizAnswered: newAnswered }
+      });
+    } else {
+      // Wrong — return a new question, no token
+      const nextQuestion = getRandomQuestion([decoded.questionId]);
+      const newQuizToken = jwt.sign({ userId: decoded.userId, questionId: nextQuestion.id, correct: nextQuestion.correct }, JWT_SECRET, { expiresIn: '5m' });
+      res.json({
+        isCorrect: false,
+        streak: 0,
+        quizToken: newQuizToken,
+        question: {
+          id: nextQuestion.id,
+          question: nextQuestion.question,
+          options: nextQuestion.options
+        }
+      });
+    }
   } catch (err) {
     res.status(401).json({ error: 'Quiz expired, try again' });
   }
@@ -245,6 +282,25 @@ app.get('/api/me', authMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: 'User not found' });
   stmts.updateLastSeen.run(req.userId);
   res.json(user);
+});
+
+// Upload avatar
+app.post('/api/me/avatar', authMiddleware, (req, res, next) => {
+  upload.single('avatar')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const avatarUrl = `/avatars/${req.file.filename}`;
+    // Delete old avatar file
+    const user = stmts.getUserById.get(req.userId);
+    if (user?.avatarUrl) {
+      const oldPath = path.join(__dirname, user.avatarUrl);
+      fs.unlink(oldPath, () => {}); // ignore errors
+    }
+    db.prepare('UPDATE users SET avatarUrl = ? WHERE id = ?').run(avatarUrl, req.userId);
+    const updatedUser = stmts.getUserById.get(req.userId);
+    res.json(updatedUser);
+  });
 });
 
 // Search users by nickname

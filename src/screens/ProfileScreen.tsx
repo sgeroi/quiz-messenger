@@ -1,15 +1,37 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
+import { api } from '../api'
 
 export default function ProfileScreen() {
   const user = useAuthStore(s => s.user)
   const logout = useAuthStore(s => s.logout)
+  const updateUser = useAuthStore(s => s.updateUser)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
 
   if (!user) return null
 
   const accuracy = user.totalQuizAnswered > 0
     ? Math.round((user.totalQuizCorrect / user.totalQuizAnswered) * 100)
     : 0
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const updatedUser = await api.uploadAvatar(file)
+      updateUser(updatedUser)
+    } catch (err: any) {
+      alert(err.message || 'Ошибка загрузки')
+    }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -21,11 +43,60 @@ export default function ProfileScreen() {
         {/* Avatar & name */}
         <div style={{ textAlign: 'center', marginBottom: 32 }} className="animate-fadeIn">
           <div
-            className="avatar avatar-lg"
-            style={{ background: user.avatarColor, margin: '0 auto', marginBottom: 12, width: 80, height: 80, fontSize: 32 }}
+            onClick={handleAvatarClick}
+            style={{
+              width: 80, height: 80,
+              borderRadius: '50%',
+              margin: '0 auto 12px',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+              background: user.avatarUrl ? 'transparent' : user.avatarColor,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 32,
+              fontWeight: 800,
+              color: 'white',
+              border: '3px solid var(--border)',
+              transition: 'border-color 0.2s'
+            }}
           >
-            {user.displayName[0]?.toUpperCase()}
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt="avatar"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              user.displayName[0]?.toUpperCase()
+            )}
+            {/* Hover overlay */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: uploading ? 1 : 0,
+              transition: 'opacity 0.2s',
+              fontSize: 14,
+              fontWeight: 700
+            }}>
+              {uploading ? '...' : '📷'}
+            </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Нажми на аватар чтобы загрузить фото
+          </p>
           <h2 style={{ fontSize: 22, fontWeight: 800 }}>{user.displayName}</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>@{user.nickname}</p>
         </div>
