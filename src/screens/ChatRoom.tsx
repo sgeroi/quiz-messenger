@@ -376,11 +376,12 @@ export default function ChatRoom({ chatId, onBack }: Props) {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }} className="animate-slideIn">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', minHeight: 0, height: '100%' }} className="animate-slideIn">
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-        borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)'
+        borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
+        flexShrink: 0
       }}>
         <button onClick={onBack} style={{
           background: 'none', border: 'none', color: 'var(--accent)',
@@ -405,7 +406,7 @@ export default function ChatRoom({ chatId, onBack }: Props) {
       {/* Messages + inline quiz */}
       <div ref={scrollRef} style={{
         flex: 1, overflowY: 'auto', padding: '12px 16px',
-        display: 'flex', flexDirection: 'column'
+        display: 'flex', flexDirection: 'column', minHeight: 0
       }}>
         {messages.length === 0 && !quiz.active && !quiz.finished && (
           <div style={{
@@ -424,7 +425,8 @@ export default function ChatRoom({ chatId, onBack }: Props) {
       <div style={{
         display: 'flex', gap: 8, padding: '12px 16px',
         paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)'
+        borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)',
+        flexShrink: 0
       }}>
         <input className="input" placeholder="Сообщение..." value={input}
           onChange={e => handleInputChange(e.target.value)}
