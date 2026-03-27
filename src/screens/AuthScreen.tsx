@@ -62,7 +62,7 @@ export default function AuthScreen() {
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 40 }} className="animate-fadeIn">
         <img
-          src="/logo.jpg"
+          src="/logo.png"
           alt="Квиз, плиз!"
           style={{
             width: 64, height: 64,
